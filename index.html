@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Generator</title>
+    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+    <style>
+         :root {
+            --bg-color: rgba(18, 18, 18, 0.8);
+            --container-bg: rgba(30, 30, 30, 0.9);
+            --text-color: #ffffff;
+            --input-bg: #2c2c2c;
+            --accent-color: #ff9800;
+            --accent-hover: #ffa726;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-image: url('https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background-color: var(--container-bg);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(255, 152, 0, 0.3);
+            max-width: 450px;
+            width: 100%;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--accent-color);
+            margin-bottom: 1.5rem;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        input, button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: none;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        input {
+            background-color: var(--input-bg);
+            color: var(--text-color);
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .checkbox-group {
+            display: flex;
+            justify-content: space-between;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin: 5px 0;
+            transition: all 0.3s ease;
+        }
+
+        .checkbox-group label:hover {
+            color: var(--accent-color);
+        }
+
+        #password {
+            font-size: 1.2rem;
+            font-weight: bold;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            text-align: center;
+        }
+
+        #length-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        #length {
+            flex-grow: 1;
+            margin-right: 10px;
+            -webkit-appearance: none;
+            background: var(--input-bg);
+            outline: none;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        #length:hover {
+            opacity: 1;
+        }
+
+        #length::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            background: var(--accent-color);
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        #length::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            background: var(--accent-color);
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        #length-value {
+            min-width: 30px;
+            text-align: right;
+            font-weight: bold;
+        }
+
+        #strength, #entropy {
+            margin-top: 15px;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Password Generator</h1>
+        <input type="text" id="password" readonly title="Generated Password" placeholder="Your password will appear here">
+        <div id="length-container">
+            <input type="range" id="length" min="4" max="50" value="12" title="Password Length">
+            <span id="length-value">12</span>
+        </div>
+        <div class="checkbox-group">
+            <label><input type="checkbox" id="lowercase" checked> &nbsp;lowercase </label>
+            <label><input type="checkbox" id="uppercase" checked> &nbsp;uppercase </label>
+            <label><input type="checkbox" id="digits" checked> &nbsp;numbers</label>
+            <label><input type="checkbox" id="special"> &nbsp;symbols</label>
+        </div>
+        <button id="generate">Generate Password</button>
+        <button id="copy">Copy to Clipboard</button>
+        <p id="strength"></p>
+        <p id="entropy"></p>
+    </div>
+
+    <py-script>
+import string
+import secrets
+import math
+from pyodide.ffi import create_proxy
+from js import document, alert
+
+def get_characters():
+    chars = ''
+    if document.querySelector('#lowercase').checked:
+        chars += string.ascii_lowercase
+    if document.querySelector('#uppercase').checked:
+        chars += string.ascii_uppercase
+    if document.querySelector('#digits').checked:
+        chars += string.digits
+    if document.querySelector('#special').checked:
+        chars += string.punctuation
+    return chars
+
+def create_password(length, characters):
+    return ''.join(secrets.choice(characters) for _ in range(length))
+
+def get_entropy(length, character_number):
+    try:
+        entropy = length * math.log2(character_number)
+    except ValueError:
+        return 0.0
+    return round(entropy, 2)
+
+def get_strength(entropy):
+    if entropy >= 120:
+        return "Excellent"
+    elif entropy >= 70:
+        return "Strong"
+    elif entropy >= 50:
+        return "Good"
+    elif entropy >= 30:
+        return "Weak"
+    else:
+        return "Pathetic"
+
+def generate_password(event=None):
+    length = int(document.querySelector('#length').value)
+    chars = get_characters()
+    if not chars:
+        document.querySelector('#password').value = "Please select at least one character type"
+        return
+    password = create_password(length, chars)
+    document.querySelector('#password').value = password
+    entropy = get_entropy(length, len(chars))
+    document.querySelector('#entropy').textContent = f"Entropy: {entropy} bits"
+    strength = get_strength(entropy)
+    document.querySelector('#strength').textContent = f"Strength: {strength}"
+
+def copy_password(event=None):
+    password = document.querySelector('#password').value
+    document.querySelector('#password').select()
+    document.execCommand('copy')
+    alert("Password copied to clipboard!")
+    
+def update_length_value(event):
+    document.querySelector('#length-value').textContent = event.target.value
+
+# Set up event listeners
+generate_proxy = create_proxy(generate_password)
+copy_proxy = create_proxy(copy_password)
+update_length_proxy = create_proxy(update_length_value)
+
+document.querySelector('#generate').addEventListener("click", generate_proxy)
+document.querySelector('#copy').addEventListener("click", copy_proxy)
+document.querySelector('#length').addEventListener("input", update_length_proxy)
+
+# Add event listeners to checkboxes
+checkboxes = document.querySelectorAll('input[type="checkbox"]')
+for checkbox in checkboxes:
+    checkbox.addEventListener("change", generate_proxy)
+
+# Generate initial password
+generate_password()
+    </py-script>
+</body>
+</html>
